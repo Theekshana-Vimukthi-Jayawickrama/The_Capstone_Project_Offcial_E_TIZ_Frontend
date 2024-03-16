@@ -1,0 +1,61 @@
+.custom-navbar {
+    background-color: #DDB3BC;
+}
+
+.custom-navbar-font {
+    color: #881C34;
+}
+
+.btn {
+    border: none !important;
+}
+
+.square-container1 {
+    width: 200px; 
+    height: 200px; 
+    background-color:#262E7B;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+
+  .hover-effect:hover {
+    transform: scale(1.2); /* increase size on hover */
+  }
+.square-container2 {
+    width: 200px; 
+    height: 200px; 
+    background-color: #288932;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.square-container {
+    width: 200px; 
+    height: 200px; 
+    background-color: red;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.text-inside {
+    color: white;
+    font-size: 18px; 
+}
+
+.th,td,tr,th {
+    border:1px solid black;
+   
+}
+
+body {
+    background-image: url('../assets/Rectangle\ 145.png');
+    background-size: cover; 
+
+  }
