@@ -7,7 +7,7 @@ import NavBar from '../Admin/NavBar';
 
 const ITEMS_PER_PAGE = 5;
 
-const DeportEdit = () => {
+const RoutePage = () => {
     const token = sessionStorage.getItem('token');
     const adminId = sessionStorage.getItem('adminId')
     const navigate = useNavigate();
@@ -26,7 +26,7 @@ const DeportEdit = () => {
         const fetchItems = async () => {
             const BearerToken = token;
             try {
-                const response = await fetch(`http://localhost:8080/api/v1/depot/getAllDepots`, {
+                const response = await fetch(`http://localhost:8080/api/v1/adminRoute/routeList`, {
                     headers: {
                         'Authorization': `Bearer ${BearerToken}`,
                         'Content-Type': 'application/json',
@@ -41,11 +41,11 @@ const DeportEdit = () => {
 
         fetchItems();
     }, []);
-    const handleDeportAdd  = () => {
-            navigate(`/depotAdd`);    
+    const handleRouteAdd  = () => {
+            navigate(`/routeAdd`);    
     };
-    const handleDeleteDeports = () => {
-        navigate(`/deportDeleteDetails`);    
+    const handleDeleteRoutes = () => {
+        navigate(`/routeDeleteDetails`);    
 };
     
     const handleSearch = () => {
@@ -54,7 +54,7 @@ const DeportEdit = () => {
 
         // Filter items based on the cleaned search term
         const filteredItems = items.filter(item => {
-            const cleanedTitle = item.depotName.toLowerCase().replace(/[^\w\s]/gi, '')  ; // Remove symbols
+            const cleanedTitle = item.routeSource.toLowerCase().replace(/[^\w\s]/gi, '') + item.routeDistance.toLowerCase().replace(/[^\w\s]/gi, '')  ; // Remove symbols
             return cleanedTitle.includes(searchTerm.toLowerCase());
         });
 
@@ -65,7 +65,7 @@ const DeportEdit = () => {
     };
 
     const editPost = (itemId) => {
-        navigate(`/deportEdit?id=${itemId}`);
+        navigate(`/routeEdit?id=${itemId}`);
     };
 
     const handleInputChange = (e) => {
@@ -74,7 +74,7 @@ const DeportEdit = () => {
 
         // Automatic filtering as the user types
         const filteredItems = items.filter(item => {
-            const cleanedTitle = item.depotName.toLowerCase().replace(/[^\w\s]/gi, ''); // Remove symbols
+            const cleanedTitle = item.routeDistance.toLowerCase().replace(/[^\w\s]/gi, '') + item.routeSource.toLowerCase().replace(/[^\w\s]/gi, ''); // Remove symbols
             return cleanedTitle.includes(newSearchTerm.toLowerCase());
         });
 
@@ -99,7 +99,7 @@ const DeportEdit = () => {
 
     const handleDelete = async (Id) => {
         try {
-          const response = await fetch(`http://localhost:8080/api/v1/admin/deleteDeport/${itemId}`, {
+          const response = await fetch(`http://localhost:8080/api/v1/adminRoute/delete/${itemId}`, {
             method: 'DELETE',
             headers: {
               'Content-Type': 'application/json',
@@ -167,12 +167,12 @@ const DeportEdit = () => {
     return (
         <>
            <cenetr><div className='container my-4'><NavBar /></div></cenetr>
-           <div className='fs-4 text-center'><b>Deports</b></div>
+           <div className='fs-4 text-center'><b>ROUTES</b></div>
             <div className='container'>
                 <div className=' my-4 row '>
                     <div className='col-lg-8'>
                     <div className='input-group mb-3'>
-                        <label htmlFor="search" className='d-none d-sm-block input-group-append mx-3' style={textStyle}>Search by Deport Name: </label>
+                        <label htmlFor="search" className='d-none d-sm-block input-group-append mx-3' style={textStyle}>Search by Route Name: </label>
                         <input
                             className="form-control rounded"
                             placeholder="Search"
@@ -188,12 +188,12 @@ const DeportEdit = () => {
 
                     </div></div>
                     <div className='col-lg-2'>                       
-                    <button className="btn m-2 my-sm-0 btn-outline-secondary mr-4" type="button" onClick={handleDeportAdd} style={textStyle}>
-                            Add Deport
+                    <button className="btn m-2 my-sm-0 btn-outline-secondary mr-4" type="button" onClick={handleRouteAdd} style={textStyle}>
+                            Add Route
                     </button>
                 </div>  
-                <div className='col-lg-2'><button className="btn m-2 my-sm-0 btn-outline-secondary mr-4" type="button" onClick={handleDeleteDeports} style={textStyle}>
-                    Delete Deport</button></div>
+                <div className='col-lg-2'><button className="btn m-2 my-sm-0 btn-outline-secondary mr-4" type="button" onClick={handleDeleteRoutes} style={textStyle}>
+                    Delete Route</button></div>
                 </div>
                
             </div>
@@ -217,14 +217,17 @@ const DeportEdit = () => {
                                     
                                     <div className='row '>
 
-                                        <div className='col-lg-3 col-md-6  m-3 font-weight-bold text-dark'>
-                                                <div className="fs-5 text-center">Deport Name: {item.depotName}</div>                                    
+                                        <div className='col-lg-4 col-md-6  m-3'>
+                                           <div className="fs-5 text-center font-weight-bold text-dark">Route: {item.routeSource} - {item.routeDistance} </div>                                           
                                         </div> 
-                                        <div className='col-lg-3 col-md-6  m-3 font-weight-bold text-dark'>
-                                                <div className="fs-5 text-center">Phone Number 01: {parseInt(item.phoneNumber, 10)}</div>                                    
+                                        <div className='col-lg-2 col-md-6  m-3 font-weight-bold text-dark'>
+                                                <div className="fs-5 text-center">Route No: {item.routeNo}</div>                                    
+                                        </div> 
+                                        <div className='col-lg-2 col-md-6  m-3 font-weight-bold text-dark'>
+                                                <div className="fs-5 text-center">Distance: {parseInt(item.distance, 10)}</div>                                    
                                         </div>
-                                        <div className='col-lg-3 col-md-6  m-3 font-weight-bold text-dark'>
-                                                <div className="fs-5 text-center">Phone Number 02: {item.phoneNumber2}</div>                                    
+                                        <div className='col-lg-2 col-md-6  m-3 font-weight-bold text-dark'>
+                                                <div className="fs-5 text-center">Per Day Charge: {item.perDayCharge}</div>                                    
                                         </div>                                        
                                     </div>        
                                     
@@ -302,4 +305,4 @@ const DeportEdit = () => {
     );
 }
 
-export default DeportEdit;
+export default RoutePage;
