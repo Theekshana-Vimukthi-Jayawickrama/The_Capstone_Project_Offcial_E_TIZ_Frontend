@@ -6,17 +6,11 @@ import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MyAccount extends StatefulWidget {
-  final String token;
-  final String userId;
-  final String role;
-
   const MyAccount({
     super.key,
-    required this.token,
-    required this.userId,
-    required this.role,
   });
 
   @override
@@ -34,44 +28,63 @@ class _HomeState extends State<MyAccount> {
   String? distance;
   String? charge;
 
+  late String? token;
+  late String? userId;
+  late List<String>? roles;
+  late SharedPreferences _prefs;
+
   @override
   void initState() {
     super.initState();
-    fetchData();
+    _initializeSharedPreferences();
+  }
+
+  Future<void> _initializeSharedPreferences() async {
+    _prefs = await SharedPreferences.getInstance();
+    _loadPreferences();
+  }
+
+  void _loadPreferences() {
+    setState(() {
+      token = _prefs.getString('token');
+      userId = _prefs.getString('userId');
+      roles = _prefs.getStringList('roles');
+      fetchData();
+    });
   }
 
   Future<void> fetchData() async {
+    // Only fetch data from the backend if it's not already loaded
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
       await dataProvider.loadFromMyAccountCache();
-      print(dataProvider.isMyAccountDataLoaded);
 
       if (!dataProvider.isMyAccountDataLoaded) {
-        // Only fetch data from the backend if it's not already loaded
-
-        await getUserName();
         await getTicketPuchaseDate();
+        await getUserRoute();
+        await getUserName();
         await fetchProfileImage();
-
         dataProvider.updateMyAccountData(
           userName1: userName,
           imageUrl1: imageUrl,
           purchaseDate: purchaseDate,
           monthName: monthName,
           routeNo: routeNo,
+          route: route,
           distance: distance,
           isMyAccountDataLoaded: !dataProvider.isMyAccountDataLoaded,
           charge: charge,
         );
       } else {
         // Assign loaded data to local variables
-        String loadedUserName = dataProvider.userName ?? '';
+        String loadedUserName = dataProvider.userName1 ?? '';
         String loadedImageUrl = dataProvider.imageUrl1;
         String loadedPurchaseDate = dataProvider.purchaseDateMyAccount ?? '';
         String loadedMonthName = dataProvider.monthName ?? '';
         String loadedRouteNo = dataProvider.routeNo ?? '';
         String loadDistance = dataProvider.distance ?? '';
         String loadCharge = dataProvider.charge ?? '';
+        String loadRoute = dataProvider.route ?? '';
 
         // Update the local state variables with loaded data
         setState(() {
@@ -82,19 +95,18 @@ class _HomeState extends State<MyAccount> {
           routeNo = loadedRouteNo;
           distance = loadDistance;
           charge = loadCharge;
+          route = loadRoute;
         });
       }
     });
   }
 
   Future<void> getUserName() async {
-    String userId = widget.userId;
-    String userToken = widget.token;
     var urlGetName =
         Uri.parse('http://192.168.43.220:8080/api/v1/user/getName/$userId');
     final response1 = await http.get(urlGetName, headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer $userToken',
+      'Authorization': 'Bearer $token',
     });
 
     if (response1.statusCode == 200) {
@@ -106,13 +118,11 @@ class _HomeState extends State<MyAccount> {
   }
 
   Future<void> getUserRoute() async {
-    String userId = widget.userId;
-    String userToken = widget.token;
     var urlGetRoute = Uri.parse(
         'http://192.168.43.220:8080/api/v1/user/getRouteDetails/$userId');
     final response = await http.get(urlGetRoute, headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer $userToken',
+      'Authorization': 'Bearer $token',
     });
 
     if (response.statusCode == 200) {
@@ -122,19 +132,19 @@ class _HomeState extends State<MyAccount> {
       routeNo = responseData['routeNo'];
       distance = responseData['distance'];
       charge = responseData['charge'];
+      monthName = responseData['purchaseMonth'];
     }
+
+    print('dddddddd $charge');
   }
 
   Future<void> fetchProfileImage() async {
-    String userToken = widget.token;
-    String userId = widget.userId;
-
     try {
       var response = await http.get(
         Uri.parse(
             'http://192.168.43.220:8080/api/v1/user/profilePhoto/$userId'),
         headers: {
-          'Authorization': 'Bearer $userToken',
+          'Authorization': 'Bearer $token',
         },
       );
 
@@ -154,6 +164,7 @@ class _HomeState extends State<MyAccount> {
       // Handle other potential errors
       print('Error: $e');
     }
+    print(imageUrl);
   }
 
   @override
@@ -166,8 +177,8 @@ class _HomeState extends State<MyAccount> {
             SingleChildScrollView(
               child: Column(children: [
                 SizedBox(
-                  height: 180,
-                  width: double.infinity,
+                  height: 800,
+                  width: MediaQuery.sizeOf(context).width * 0.99,
                   child: Stack(
                     children: [
                       Container(
@@ -176,6 +187,16 @@ class _HomeState extends State<MyAccount> {
                           decoration: const BoxDecoration(
                             color: Color(0xFF881C34),
                             borderRadius: BorderRadius.only(),
+                          )),
+                      const Positioned(
+                          top: 25,
+                          left: 20,
+                          child: Text(
+                            "My Account ",
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 25,
+                                color: Color.fromARGB(236, 252, 250, 250)),
                           )),
                       Positioned(
                         top: 140,
@@ -225,109 +246,110 @@ class _HomeState extends State<MyAccount> {
                                 borderRadius:
                                     BorderRadius.all(Radius.circular(500)))),
                       ),
+                      Positioned.fill(
+                        top: 100,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            imageUrl.isNotEmpty
+                                ? ClipOval(
+                                    child: Image.memory(
+                                      base64Decode(imageUrl),
+                                      width: 250,
+                                      height: 250,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : CircularProgressIndicator(),
+                            Center(
+                              child: Text(
+                                " $userName ",
+                                style: const TextStyle(
+                                    fontSize: 25, color: Color(0xFF881C34)),
+                              ),
+                            ),
+                            const SizedBox(
+                              height: 20,
+                            ),
+                            Text(
+                              "Currently Purchase Month : $monthName",
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  fontSize: 15, color: Color(0xFF881C34)),
+                            ),
+                            const SizedBox(
+                              height: 10,
+                            ),
+                            Container(
+                              width: 300,
+                              height: 180,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Color.fromARGB(255, 244, 148, 30),
+                                    Color.fromARGB(255, 226, 94, 11)
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Column(children: [
+                                const Text(
+                                  "Your Route",
+                                  style: TextStyle(
+                                      color: Color(0xFFFFFFFF),
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(
+                                  height: 10,
+                                ),
+                                Text(
+                                  "Route :$route",
+                                  style: const TextStyle(
+                                      color: Color(0xFFFFFFFF),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(
+                                  height: 10,
+                                ),
+                                Text(
+                                  "Charge :$charge",
+                                  style: const TextStyle(
+                                      color: Color(0xFFFFFFFF),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(
+                                  height: 10,
+                                ),
+                                Text(
+                                  "Route NO :$routeNo",
+                                  style: const TextStyle(
+                                      color: Color(0xFFFFFFFF),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(
+                                  height: 10,
+                                ),
+                                Text(
+                                  "Distance :$distance",
+                                  style: const TextStyle(
+                                      color: Color(0xFFFFFFFF),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold),
+                                )
+                              ]),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                Column(
-                  children: [
-                    imageUrl.isNotEmpty
-                        ? ClipOval(
-                            child: Image.memory(
-                              base64Decode(imageUrl),
-                              width: 250,
-                              height: 250,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : CircularProgressIndicator(),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    Center(
-                      child: Text(
-                        " $userName ",
-                        style: const TextStyle(
-                            fontSize: 25, color: Color(0xFF881C34)),
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 20,
-                    ),
-                    Text(
-                      "Current Purchase Month : $monthName",
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 15, color: Color(0xFF881C34)),
-                    ),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    Container(
-                      width: 300,
-                      height: 180,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Color.fromARGB(255, 244, 169, 30),
-                            Color.fromARGB(255, 236, 211, 164)
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Column(children: [
-                        const Text(
-                          "Your Route",
-                          style: TextStyle(
-                              color: Color(0xFFFFFFFF),
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(
-                          height: 10,
-                        ),
-                        Text(
-                          "Route :$route",
-                          style: TextStyle(
-                              color: Color(0xFFFFFFFF),
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(
-                          height: 10,
-                        ),
-                        Text(
-                          "Charge :$charge",
-                          style: TextStyle(
-                              color: Color(0xFFFFFFFF),
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(
-                          height: 10,
-                        ),
-                        Text(
-                          "Route NO :$routeNo",
-                          style: TextStyle(
-                              color: Color(0xFFFFFFFF),
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(
-                          height: 10,
-                        ),
-                        Text(
-                          "Distance :$distance",
-                          style: TextStyle(
-                              color: Color(0xFFFFFFFF),
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold),
-                        )
-                      ]),
-                    ),
-                  ],
-                )
               ]),
             ),
           ]),
@@ -346,22 +368,24 @@ class _HomeState extends State<MyAccount> {
     // await fetchProfileImage();
     // await getUserName();
     // await getTicketPuchaseDate();
-
+    await _initializeSharedPreferences();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await getUserName();
+      await getUserRoute();
+      await getTicketPuchaseDate();
+      await fetchProfileImage();
+
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
       await dataProvider.loadFromMyAccountCache();
       print(dataProvider.isMyAccountDataLoaded);
 
-      await getUserName();
-      await getTicketPuchaseDate();
-      await fetchProfileImage();
-
       dataProvider.updateMyAccountData(
-        userName1: 'Theekshana',
+        userName1: userName,
         imageUrl1: imageUrl,
         purchaseDate: purchaseDate,
         monthName: monthName,
         routeNo: routeNo,
+        route: route,
         distance: distance,
         isMyAccountDataLoaded: false,
         charge: charge,
@@ -376,13 +400,11 @@ class _HomeState extends State<MyAccount> {
   }
 
   Future<void> getTicketPuchaseDate() async {
-    String userId = widget.userId;
-    String userToken = widget.token;
     final response = await http.get(
       Uri.parse(
           'http://192.168.43.220:8080/api/v1/subscription/getTicketDetails/$userId'),
       headers: <String, String>{
-        'Authorization': 'Bearer $userToken',
+        'Authorization': 'Bearer $token',
         'Content-Type': 'application/json; charset=UTF-8',
       },
     );

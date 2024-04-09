@@ -36,6 +36,9 @@ class DataProvider with ChangeNotifier {
   bool? purchaseAvailability;
   bool isTicketDataLoaded = false;
   static const String cacheKey = 'dataCache';
+  String amount = '';
+  bool? buttonStatus;
+  bool? nextMonthSubcription;
 
   String purchaseDateMyAccount = '0000/00/00';
   String? monthName;
@@ -46,22 +49,24 @@ class DataProvider with ChangeNotifier {
   bool isMyAccountDataLoaded = false;
   String imageUrl1 = '';
 
-  void updateData({
-    String? userName,
-    String imageUrl = '',
-    List<DateTime> noJourney = const [],
-    List<DateTime> oneJourney = const [],
-    List<DateTime> twoJourney = const [],
-    List<DateTime> blankJourney = const [],
-    bool? isDataLoaded,
-    int? monday,
-    int? tuesday,
-    int? wensday,
-    int? friday,
-    int? thusday,
-    int? satuarday,
-    int? sunday,
-  }) {
+  void updateData(
+      {String? userName,
+      String imageUrl = '',
+      List<DateTime> noJourney = const [],
+      List<DateTime> oneJourney = const [],
+      List<DateTime> twoJourney = const [],
+      List<DateTime> blankJourney = const [],
+      bool? isDataLoaded,
+      int? monday,
+      int? tuesday,
+      int? wensday,
+      int? friday,
+      int? thusday,
+      int? satuarday,
+      int? sunday,
+      String? token,
+      String? userId,
+      List<String>? roles}) {
     this.userName = userName;
     this.imageUrl = imageUrl;
     this.noJourney = noJourney;
@@ -120,6 +125,7 @@ class DataProvider with ChangeNotifier {
       'routeNo': routeNo,
       'distance': distance,
       'charge': charge,
+      'route': route,
       'isMyAccountDataLoaded': isMyAccountDataLoaded
     };
 
@@ -139,6 +145,7 @@ class DataProvider with ChangeNotifier {
       monthName = data['monthName'] ?? '';
       routeNo = data['routeNo'] ?? '';
       distance = data['distance'] ?? '';
+      route = data['route'] ?? '';
       charge = data['charge'] ?? '';
       isMyAccountDataLoaded = data['isMyAccountDataLoaded'] ?? false;
 
@@ -152,16 +159,22 @@ class DataProvider with ChangeNotifier {
     String purchaseDate = '0000-00-00',
     String expiredDate = '0000-00-00',
     int? remainDays,
+    bool? nextMonthSubcription,
     bool? verification,
     bool? purchaseAvailability,
-    bool isTicketDataLoaded = false,
+    bool? isTicketDataLoaded,
+    String amount = '',
+    bool? buttonStatus,
   }) {
     this.purchaseAvailability = purchaseAvailability;
     this.purchaseDate = purchaseDate;
     this.expiredDate = expiredDate;
     this.verification = verification;
     this.remainDays = remainDays;
-    this.isTicketDataLoaded = isTicketDataLoaded;
+    this.isTicketDataLoaded = isTicketDataLoaded!;
+    this.amount = amount;
+    this.buttonStatus = buttonStatus;
+    this.nextMonthSubcription = nextMonthSubcription;
 
     // Save data to cache
     _saveTicketToCache();
@@ -178,6 +191,9 @@ class DataProvider with ChangeNotifier {
       'remainDays': remainDays,
       'verification': verification,
       'isTicketDataLoaded': isTicketDataLoaded,
+      'amount': amount,
+      'buttonStatus': buttonStatus,
+      'nextMonthSubcription': nextMonthSubcription
     };
 
     prefs.setString(ticketDataCacheKey, jsonEncode(data));
@@ -196,7 +212,9 @@ class DataProvider with ChangeNotifier {
       remainDays = data['remainDays'] ?? 0;
       verification = data['verification'] ?? null;
       isTicketDataLoaded = data['isTicketDataLoaded'] ?? true;
-
+      amount = data['amount'] ?? null;
+      buttonStatus = data['buttonStatus'] ?? false;
+      nextMonthSubcription = data['nextMonthSubcription'] ?? false;
       notifyListeners();
     }
   }
