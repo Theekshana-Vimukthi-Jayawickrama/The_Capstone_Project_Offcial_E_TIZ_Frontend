@@ -4,11 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class QRCodePage extends StatefulWidget {
-  final String token;
-  final String userId;
-  const QRCodePage({super.key, required this.token, required this.userId});
+  const QRCodePage();
 
   @override
   State<QRCodePage> createState() => _QRCodePageState();
@@ -18,20 +17,37 @@ class _QRCodePageState extends State<QRCodePage> {
   String imageUrl = '';
   late http.Client client;
   late Uint8List imageData;
+  late String? token;
+  late String? userId;
+  late List<String>? roles;
+  late SharedPreferences _prefs;
+
+  Future<void> _initializeSharedPreferences() async {
+    _prefs = await SharedPreferences.getInstance();
+    _loadPreferences();
+  }
+
+  void _loadPreferences() {
+    setState(() {
+      token = _prefs.getString('token');
+      userId = _prefs.getString('userId');
+      roles = _prefs.getStringList('roles');
+      fetchQRCodeImage();
+    });
+  }
 
   @override
   void initState() {
     super.initState();
-    fetchQRCodeImage();
+    _initializeSharedPreferences();
   }
 
   void fetchQRCodeImage() async {
-    String userToken = widget.token;
-    String url = 'http://192.168.43.220:8080/api/v1/qrcodes/${widget.userId}';
+    String url = 'http://192.168.43.220:8080/api/v1/qrcodes/${userId}';
 
     try {
       var response = await http.get(Uri.parse(url), headers: {
-        'Authorization': 'Bearer $userToken',
+        'Authorization': 'Bearer $token',
       });
 
       if (response.statusCode == 200) {

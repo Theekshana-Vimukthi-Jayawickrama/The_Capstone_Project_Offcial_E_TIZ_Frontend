@@ -84,15 +84,19 @@ class _AdultHomeBusRouteState extends State<AdultHomeBusRoute> {
       String url =
           'http://192.168.43.220:8080/api/v1/route/getAdultCharge/$selectedRoute';
       try {
-        final response = await http.get(Uri.parse(url));
+        final response = await http.post(
+          Uri.parse(url),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(selectedDays),
+        );
         if (response.statusCode == 200) {
-          String jsonResponse = jsonDecode(response.body);
           setState(() {
-            charge = jsonResponse;
+            charge = jsonDecode(response.body).toString();
           });
-          print('Charge fetched: $charge');
+
+          print(charge);
         } else {
-          print('HTTP Error: ${response.statusCode}');
+          print("Error for chargers");
         }
       } catch (e) {
         print('Error occurred: $e');
@@ -157,7 +161,7 @@ class _AdultHomeBusRouteState extends State<AdultHomeBusRoute> {
                       ],
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(20.0),
+                      padding: const EdgeInsets.all(10.0),
                       child: Column(
                         children: [
                           const Text(
@@ -266,6 +270,7 @@ class _AdultHomeBusRouteState extends State<AdultHomeBusRoute> {
                                       onChanged: (bool? value) {
                                         setState(() {
                                           selectedDays[day] = value!;
+                                          fetchChargeData();
                                         });
                                       },
                                     ),

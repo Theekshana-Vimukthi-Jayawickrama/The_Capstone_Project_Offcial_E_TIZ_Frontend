@@ -8,17 +8,11 @@ import 'package:flutter_calendar_carousel/classes/event.dart';
 import 'package:flutter_calendar_carousel/classes/event_list.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Home extends StatefulWidget {
-  final String token;
-  final String userId;
-  final String role;
-
   const Home({
     super.key,
-    required this.token,
-    required this.userId,
-    required this.role,
   });
 
   @override
@@ -47,21 +41,41 @@ class _HomeState extends State<Home> {
   int? satuarday;
   int? sunday;
 
+  late String? token;
+  late String? userId;
+  late List<String>? roles;
+  late SharedPreferences _prefs;
+
+  Future<void> _initializeSharedPreferences() async {
+    _prefs = await SharedPreferences.getInstance();
+    _loadPreferences();
+  }
+
+  void _loadPreferences() {
+    setState(() {
+      token = _prefs.getString('token');
+      userId = _prefs.getString('userId');
+      roles = _prefs.getStringList('roles');
+      fetchData();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     today = DateTime.now();
-
     minDate = DateTime(today.year, today.month - 2, 1);
     maxDate = DateTime(today.year, today.month, 31);
+    _initializeSharedPreferences();
+  }
 
+  Future<void> fetchData() async {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
       await dataProvider.loadFromCache();
       print(dataProvider.isDataLoaded);
-
+// Only fetch data from the backend if it's not already loaded
       if (!dataProvider.isDataLoaded) {
-        // Only fetch data from the backend if it's not already loaded
         await getSelectedDays();
         await getUserName();
         await presentDaySelection();
@@ -121,8 +135,8 @@ class _HomeState extends State<Home> {
   }
 
   Future<void> getSelectedDays() async {
-    String userId = widget.userId;
-    if (widget.role.contains('STUDENT'.toUpperCase().trim())) {
+    print('give me ${roles}');
+    if (roles != null && roles!.contains('STUDENT')) {
       monday = 0;
       tuesday = 0;
       wensday = 0;
@@ -130,11 +144,14 @@ class _HomeState extends State<Home> {
       thusday = 0;
       satuarday = 0;
       sunday = 0;
-    } else if (widget.role == 'ADULT'.toUpperCase().trim()) {
+    } else if (roles != null && roles!.contains('ADULT')) {
       final response = await http.get(
         Uri.parse(
             'http://192.168.43.220:8080/api/v1/journey/adult/daySelection/$userId'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -170,17 +187,14 @@ class _HomeState extends State<Home> {
         }
       }
     }
-    print(this.tuesday);
   }
 
   Future<void> getUserName() async {
-    String userId = widget.userId;
-    String userToken = widget.token;
     var urlGetName =
         Uri.parse('http://192.168.43.220:8080/api/v1/user/getName/$userId');
     final response1 = await http.get(urlGetName, headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer $userToken',
+      'Authorization': 'Bearer $token',
     });
 
     if (response1.statusCode == 200) {
@@ -192,12 +206,11 @@ class _HomeState extends State<Home> {
   }
 
   Future<void> fetchQRCodeImage() async {
-    String userToken = widget.token;
-    String url = 'http://192.168.43.220:8080/api/v1/qrcodes/${widget.userId}';
+    String url = 'http://192.168.43.220:8080/api/v1/qrcodes/${userId}';
 
     try {
       var response = await http.get(Uri.parse(url), headers: {
-        'Authorization': 'Bearer $userToken',
+        'Authorization': 'Bearer $token',
       });
 
       if (response.statusCode == 200) {
@@ -237,9 +250,9 @@ class _HomeState extends State<Home> {
       Future<void> request = calenderMarker(formattedDate, date);
       requests.add(request);
 
-      if (date.isBefore(minDate)) {
-        break;
-      }
+      // if (date.isBefore(minDate)) {
+      //   break;
+      // }
     }
     // Wait for all requests to complete
     await Future.wait(requests);
@@ -247,12 +260,10 @@ class _HomeState extends State<Home> {
   }
 
   Future<void> calenderMarker(String formattedDate, DateTime dateToAdd) async {
-    String userId = widget.userId;
-    String userToken = widget.token;
     var url = Uri.parse(
         'http://192.168.43.220:8080/api/v1/journey/student/checkJourney/$userId/$formattedDate');
     final response = await http.get(url, headers: {
-      'Authorization': 'Bearer $userToken',
+      'Authorization': 'Bearer $token',
       'Content-Type': 'application/json',
     });
 
@@ -261,13 +272,14 @@ class _HomeState extends State<Home> {
     if (response.statusCode == 200) {
       int status = jsonDecode(response.body);
       setState(() {
+        print(status);
         if (status == 0) {
           noJourney.add(dateToAdd);
         } else if (status == 1) {
           oneJourney.add(dateToAdd);
         } else if (status == 2) {
           twoJourney.add(dateToAdd);
-        } else if (status == 500) {
+        } else if (status == 404) {
           if (dateToAdd == currentDate) {
             todayJourney.add(dateToAdd);
           } else {
@@ -349,64 +361,67 @@ class _HomeState extends State<Home> {
                                 borderRadius:
                                     BorderRadius.all(Radius.circular(500)))),
                       ),
-                      Positioned(
-                        left: 50,
+                      Positioned.fill(
+                        top: 170,
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: Container(
+                              width: 300,
+                              height: 100,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF881C34),
+                                borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(25),
+                                    topRight: Radius.circular(25)),
+                              )),
+                        ),
+                      ),
+                      Positioned.fill(
                         top: 180,
-                        child: Container(
-                            width: 310,
-                            height: 100,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF881C34),
-                              borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(25),
-                                  topRight: Radius.circular(25)),
-                            )),
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: Container(
+                              width: 220,
+                              height: 75,
+                              decoration: const BoxDecoration(
+                                color: Color.fromARGB(255, 238, 231, 232),
+                                borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(25),
+                                    topRight: Radius.circular(25)),
+                              )),
+                        ),
                       ),
-                      Positioned(
-                        left: 100,
-                        top: 210,
-                        child: Container(
-                            width: 220,
-                            height: 75,
-                            decoration: const BoxDecoration(
-                              color: Color.fromARGB(255, 238, 231, 232),
-                              borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(25),
-                                  topRight: Radius.circular(25)),
-                            )),
-                      ),
-                      Positioned(
-                        left: 110,
-                        top: 220,
-                        child: GestureDetector(
-                          onTap: () {
-                            if (imageUrl.isNotEmpty) {
-                              // navigateToAnotherPage();
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => QRCodePage(
-                                          token: widget.token,
-                                          userId: widget.userId,
-                                        )),
-                              );
-                            }
-                          },
-                          child: imageUrl.isNotEmpty
-                              ? Image.memory(
-                                  base64Decode(imageUrl),
-                                  width:
-                                      200, // Adjust the width/height as needed
-                                  height: 200,
-                                )
-                              : CircularProgressIndicator(),
+                      Positioned.fill(
+                        top: 100,
+                        child: Align(
+                          alignment: Alignment.center,
+                          child: GestureDetector(
+                            onTap: () {
+                              if (imageUrl.isNotEmpty) {
+                                // navigateToAnotherPage();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => QRCodePage()),
+                                );
+                              }
+                            },
+                            child: imageUrl.isNotEmpty
+                                ? Image.memory(
+                                    base64Decode(imageUrl),
+                                    width:
+                                        200, // Adjust the width/height as needed
+                                    height: 200,
+                                  )
+                                : CircularProgressIndicator(),
+                          ),
                         ),
                       ),
                       Positioned(
                           top: 10,
                           left: 20,
                           child: Text(
-                            "Good Evening, $userName ",
+                            "Hello, $userName ",
                             style: const TextStyle(
                                 fontSize: 20,
                                 color: Color.fromARGB(236, 252, 250, 250)),
@@ -423,6 +438,7 @@ class _HomeState extends State<Home> {
                     ],
                   ),
                 ),
+                //calender start
                 Container(
                   height: 420,
                   child: CalendarCarousel<Event>(
@@ -529,6 +545,7 @@ class _HomeState extends State<Home> {
                           ),
                         );
                       } else if (day.weekday == sunday) {
+                        print("hi");
                         return Container(
                           decoration: const BoxDecoration(
                             color: Color.fromARGB(255, 13, 14, 13),
@@ -543,7 +560,8 @@ class _HomeState extends State<Home> {
                           ),
                         );
                       } else if (noJourney.contains(day)) {
-                        print(todayJourney);
+                        print("hi");
+                        print(noJourney.contains(day));
                         return Container(
                           decoration: const BoxDecoration(
                             color: Color(0xFFEACFCF),
@@ -583,10 +601,10 @@ class _HomeState extends State<Home> {
                           ),
                         );
                       } else if (blankJourney.contains(day)) {
-                        print(noJourney);
+                        print("hi");
                         return Container(
                           decoration: const BoxDecoration(
-                            color: Color.fromARGB(255, 58, 57, 57),
+                            color: Color.fromARGB(69, 41, 117, 224),
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -598,6 +616,7 @@ class _HomeState extends State<Home> {
                         );
                       } else if (todayJourney.contains(day)) {
                         print(noJourney);
+                        print("hi");
                         return Container(
                           decoration: const BoxDecoration(
                             color: Color.fromARGB(255, 247, 6, 6),
@@ -630,13 +649,13 @@ class _HomeState extends State<Home> {
 
   Future<void> _refreshData() async {
     await Future.delayed(const Duration(seconds: 2));
-
+    await _initializeSharedPreferences();
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
     await dataProvider.loadFromCache();
-
+    await presentDaySelection();
     await getUserName();
     await getSelectedDays();
-    await presentDaySelection();
+
     await fetchQRCodeImage();
 
     dataProvider.updateData(
@@ -646,6 +665,13 @@ class _HomeState extends State<Home> {
       oneJourney: oneJourney,
       twoJourney: twoJourney,
       blankJourney: blankJourney,
+      monday: monday,
+      tuesday: tuesday,
+      wensday: wensday,
+      thusday: thusday,
+      friday: friday,
+      satuarday: satuarday,
+      sunday: sunday,
       isDataLoaded: true,
     );
 
